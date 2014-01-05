@@ -83,7 +83,7 @@ case "$1" in
     ID=$(docker ps -a | grep "$REDIS_IMAGE":latest |  awk '{print $1}')
     IP=$(cat $DOKKU_ROOT/VHOST)
     PORT=$(docker port $ID 6379 | cut -d: -f 2)
-    REDIS_URL="REDIS_URL=redis://$IP:$PORT"
+    REDIS_URL="redis://$IP:$PORT"
     echo "REDIS_URL=$REDIS_URL"
     ;;
   redis:info)
@@ -106,16 +106,14 @@ case "$1" in
             exit 1
         fi
         REDIS_IMAGE="redis/$3"
-        ID=$(docker ps -a | grep "$REDIS_IMAGE":latest |  awk '{print $1}')
-        #IP=$(docker inspect $ID | grep IPAddress | awk '{ print $2 }' | tr -d ',"')
-        IP=$(cat $DOKKU_ROOT/VHOST)
-	PORT=$(docker port $ID 6379 | cut -d: -f 2)
         # Write REDIS_IP to app's ENV file
-        REDIS_URL="REDIS_URL=redis://$IP:$PORT"
-        if [[ ! -f "$DOKKU_ROOT/$APP/ENV" ]]; then
-            touch "$DOKKU_ROOT/$APP/ENV"
+        ENV="$DOKKU_ROOT/$APP/ENV"
+        if [[ ! -f "$ENV" ]]; then
+            touch "$ENV"
         fi
-        cat "$DOKKU_ROOT/$APP/ENV" | grep -v "REDIS_URL" || echo "export $(dokku redis:url $APP)" >> "$DOKKU_ROOT/$APP/ENV"
+        REDIS_URL=$(dokku redis:url $APP | tr -d "\n")
+        cat "$ENV" | grep -v "REDIS_URL" | tee "$ENV"
+        echo "export $REDIS_URL" | tee -a "$ENV"
         echo
         echo "-----> $APP linked to $REDIS_IMAGE container"
     fi
